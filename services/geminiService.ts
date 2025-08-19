@@ -4,11 +4,11 @@ import { Job, Client, CalendarEvent } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { getJobPaymentSummary } from '../utils/jobCalculations';
 
-// Ensure API_KEY is set in your environment variables
-const API_KEY = process.env.API_KEY;
+// Ensure NEXT_PUBLIC_API_KEY is set in your environment variables for client-side access.
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
 if (!API_KEY) {
-  console.warn("API_KEY for Gemini is not set. AI Assistant will not work. Please set process.env.API_KEY.");
+  console.warn("NEXT_PUBLIC_API_KEY for Gemini is not set. AI Assistant will not work. Please set it in your environment variables.");
 }
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;

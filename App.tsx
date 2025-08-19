@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -23,12 +21,33 @@ import { useAppData } from './hooks/useAppData';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from 'react-hot-toast';
 import BrandingSplashScreen from './components/BrandingSplashScreen';
+import { isPersistenceEnabled } from './services/blobStorageService';
+import { ExclamationCircleIcon } from './constants';
+
+const PersistenceWarningBanner: React.FC = () => {
+  if (isPersistenceEnabled) {
+    return null;
+  }
+
+  return (
+    <div className="bg-yellow-100 border-b-2 border-yellow-500 text-yellow-800 p-3 text-center text-sm font-semibold sticky top-0 z-[60] shadow-md">
+      <div className="flex items-center justify-center">
+        <ExclamationCircleIcon size={18} className="mr-2" />
+        <span>
+          Atenção: A persistência de dados está desativada. Configure as variáveis de ambiente do Supabase para salvar seus dados.
+        </span>
+      </div>
+    </div>
+  );
+};
+
 
 const MainLayout: React.FC = () => {
   return (
     <div 
       className="flex flex-col h-screen bg-main-bg text-text-primary" 
     >
+      <PersistenceWarningBanner />
       <Header />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
