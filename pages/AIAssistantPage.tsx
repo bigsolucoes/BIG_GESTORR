@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { AIChatMessage as AIChatMessageType, GroundingChunk } from '../types';
@@ -10,7 +11,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { SendHorizonal } from 'lucide-react'; // Using SendHorizonal for send button
 
 const AIAssistantPage: React.FC = () => {
-  const { jobs, clients, calendarEvents, loading: appDataLoading } = useAppData();
+  const { jobs, clients, loading: appDataLoading } = useAppData();
   const [messages, setMessages] = useState<AIChatMessageType[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +54,6 @@ const AIAssistantPage: React.FC = () => {
       const contextData = {
         jobs,
         clients,
-        calendarEvents,
       };
       
       const aiResponse = await callGeminiApi(input, contextData);

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppData } from '../../hooks/useAppData'; // To get settings for logo
-import { APP_NAME, BellIcon } from '../../constants';
+import { APP_NAME, BellIcon, ExclamationCircleIcon } from '../../constants';
 import toast from 'react-hot-toast';
 import Modal from '../../components/Modal';
 
@@ -36,36 +36,54 @@ const ChangelogContent: React.FC = () => (
 
 
 const LoginPage: React.FC = () => {
-  const [username, setUsername] = useState(''); // Changed from email
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isUpdatesModalOpen, setUpdatesModalOpen] = useState(false);
   const { login } = useAuth();
-  const { settings } = useAppData(); // For logo
+  const { settings } = useAppData();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedUsername = localStorage.getItem('big_rememberedUser');
+    if (savedUsername) {
+      setUsername(savedUsername);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const success = await login(username, password); // Changed from email
+    setError(null);
+    const errorMessage = await login(username, password);
     setIsLoading(false);
-    if (success) {
+    
+    if (errorMessage) {
+      setError(errorMessage);
+    } else {
+      if (rememberMe) {
+        localStorage.setItem('big_rememberedUser', username);
+      } else {
+        localStorage.removeItem('big_rememberedUser');
+      }
       toast.success('Login bem-sucedido!');
       navigate('/dashboard');
-    } else {
-      toast.error('Falha no login. Verifique seu usuário e senha.'); // Updated error message
     }
   };
 
   const handleAdminLogin = async () => {
     setIsLoading(true);
-    const success = await login('admin', 'admin');
+    setError(null);
+    const errorMessage = await login('admin', 'admin');
     setIsLoading(false);
-    if (success) {
+    if (errorMessage) {
+      setError('Falha no login de administrador.');
+    } else {
       toast.success('Login de administrador bem-sucedido!');
       navigate('/dashboard');
-    } else {
-      toast.error('Falha no login de administrador.');
     }
   };
   
@@ -81,7 +99,7 @@ const LoginPage: React.FC = () => {
         <BellIcon size={24} />
       </button>
 
-      <div className="w-full max-w-md">
+      <div className={`w-full max-w-md transition-transform duration-500 ${error ? 'animate-shake' : ''}`}>
         <div className="text-center mb-6 sm:mb-8">
           {settings.customLogo ? (
             <img src={settings.customLogo} alt={`${APP_NAME} Logo`} className="h-12 sm:h-16 mx-auto mb-2 object-contain" />
@@ -92,17 +110,26 @@ const LoginPage: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-card-bg shadow-xl rounded-xl p-6 sm:p-8 space-y-6">
+          
+          {error && (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md flex items-center" role="alert">
+              <ExclamationCircleIcon size={20} className="mr-3" />
+              <span className="font-semibold">{error}</span>
+            </div>
+          )}
+
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-text-secondary mb-1">Usuário</label> {/* Changed from Email */}
+            <label htmlFor="username" className="block text-sm font-medium text-text-secondary mb-1">Usuário</label>
             <input
-              type="text" // Changed from email
+              type="text"
               id="username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)} // Changed from setEmail
+              onChange={(e) => { setUsername(e.target.value); setError(null); }}
               className={commonInputClass}
-              placeholder="seu_usuario" // Changed placeholder
+              placeholder="seu_usuario"
               required
               disabled={isLoading}
+              autoComplete="username"
             />
           </div>
           <div>
@@ -111,13 +138,31 @@ const LoginPage: React.FC = () => {
               type="password"
               id="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setError(null); }}
               className={commonInputClass}
               placeholder="••••••••"
               required
               disabled={isLoading}
+              autoComplete="current-password"
             />
           </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input 
+                id="remember-me" 
+                name="remember-me" 
+                type="checkbox" 
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 text-accent border-gray-300 rounded focus:ring-accent"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-text-secondary">
+                Lembrar-me
+              </label>
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={isLoading}

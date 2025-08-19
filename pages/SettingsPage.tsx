@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, ChangeEvent, useRef } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import toast from 'react-hot-toast';
-import { APP_NAME, SettingsIcon as PageIcon, CalendarIcon, LinkIcon, DownloadIcon, UploadIcon } from '../constants'; // PageIcon, CalendarIcon, LinkIcon
+import { APP_NAME, SettingsIcon as PageIcon, LinkIcon, DownloadIcon, UploadIcon } from '../constants'; // PageIcon, LinkIcon
 import LoadingSpinner from '../components/LoadingSpinner'; 
 
 const SettingsPage: React.FC = () => {
@@ -10,13 +9,10 @@ const SettingsPage: React.FC = () => {
     settings, 
     updateSettings, 
     loading, 
-    connectGoogleCalendar, 
-    disconnectGoogleCalendar,
     exportData,
     importData
   } = useAppData();
   
-  const [isConnecting, setIsConnecting] = useState(false);
   const [customLogoPreview, setCustomLogoPreview] = useState<string | undefined>(settings.customLogo);
   const [asaasUrlInput, setAsaasUrlInput] = useState(settings.asaasUrl || '');
   const [userNameInput, setUserNameInput] = useState(settings.userName || '');
@@ -54,24 +50,6 @@ const SettingsPage: React.FC = () => {
   const handleRemoveLogo = () => {
     setCustomLogoPreview(undefined);
   }
-
-  const handleConnect = async () => {
-    setIsConnecting(true);
-    toast('Conectando com Google Calendar...', { icon: '🗓️', id: 'connecting-toast' });
-    const success = await connectGoogleCalendar();
-    toast.dismiss('connecting-toast');
-    if (success) {
-      toast.success('Google Calendar conectado!');
-    } else {
-      toast.error('Falha ao conectar com Google Calendar.');
-    }
-    setIsConnecting(false);
-  };
-  
-  const handleDisconnect = () => {
-    disconnectGoogleCalendar();
-    toast('Google Calendar desconectado.', { icon: 'ℹ️' });
-  };
 
   const handleSaveChanges = () => {
     try {
@@ -238,35 +216,6 @@ const SettingsPage: React.FC = () => {
             />
              <p className="text-xs text-text-secondary mt-1">Deixe em branco para usar a URL padrão.</p>
           </div>
-        </div>
-      </div>
-
-      <div className={sectionCardClass}>
-        <h2 className="text-xl font-semibold text-text-primary mb-4 flex items-center"><CalendarIcon size={22} className="mr-2 text-accent"/>Integrações</h2>
-        <div>
-            <h3 className="text-lg font-medium text-text-primary mb-2">Google Calendar</h3>
-            {settings.googleCalendarConnected ? (
-                <div className="flex items-center gap-4">
-                    <p className="text-green-600 font-medium">Conectado ao Google Calendar.</p>
-                    <button 
-                        onClick={handleDisconnect}
-                        className="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600 transition-colors text-sm"
-                    >
-                        Desconectar
-                    </button>
-                </div>
-            ) : (
-                <button 
-                    onClick={handleConnect}
-                    disabled={isConnecting}
-                    className="bg-accent text-white px-4 py-2 rounded-lg shadow hover:brightness-90 transition-colors text-sm flex items-center disabled:opacity-50"
-                >
-                   <CalendarIcon size={18} className="mr-2"/> {isConnecting ? 'Conectando...' : 'Conectar com Google Calendar'}
-                </button>
-            )}
-             <p className="text-xs text-text-secondary mt-2">
-                Permite criar eventos no seu Google Calendar para prazos de jobs.
-            </p>
         </div>
       </div>
 

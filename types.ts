@@ -1,4 +1,3 @@
-
 export enum ServiceType {
   VIDEO = 'Vídeo',
   PHOTO = 'Fotografia',
@@ -45,6 +44,12 @@ export interface Payment {
   notes?: string;
 }
 
+export interface Task {
+  id: string;
+  text: string;
+  isCompleted: boolean;
+}
+
 export interface Job {
   id: string;
   name: string;
@@ -60,9 +65,10 @@ export interface Job {
   isDeleted?: boolean;
   observationsLog?: JobObservation[];
   payments: Payment[]; // Replaces all old payment fields
-  createCalendarEvent?: boolean; // For Google Calendar integration
-  calendarEventId?: string; // ID of the event created in the calendar
   isRecurring?: boolean;
+  createCalendarEvent?: boolean;
+  tasks: Task[]; // New for checklist
+  linkedDraftIds: string[]; // New for linking drafts
 }
 
 export enum FinancialJobStatus {
@@ -108,13 +114,12 @@ export interface AppSettings {
   accentColor?: string;
   splashScreenBackgroundColor?: string;
   privacyModeEnabled?: boolean; 
-  googleCalendarConnected?: boolean;
-  googleCalendarLastSync?: string;
 }
 
 export interface User {
   id:string;
   username: string; 
+  email: string;
 }
 
 export interface ScriptLine {
@@ -141,12 +146,11 @@ export interface DraftNote {
   updatedAt: string;
 }
 
-export interface CalendarEvent {
+export interface Notification {
   id: string;
-  title: string;
-  start: string; // ISO String
-  end: string; // ISO String
-  allDay: boolean;
-  source: 'google' | 'big';
-  jobId?: string;
+  type: 'deadline' | 'overdue' | 'event' | 'client';
+  message: string;
+  linkTo: string;
+  isRead: boolean;
+  entityId: string; // ID of the job or client
 }

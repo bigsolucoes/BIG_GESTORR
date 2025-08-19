@@ -17,6 +17,12 @@
           .animate-modalShow {
             animation: modalShow 0.3s ease-out forwards;
           }
+          .animate-slowPulse {
+            animation: slowPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          }
+          .animate-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+          }
         }
         @keyframes modalShow {
           0% {
@@ -26,6 +32,30 @@
           100% {
             opacity: 1;
             transform: translateY(0) scale(1);
+          }
+        }
+        @keyframes slowPulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.9;
+            transform: scale(1.02);
+          }
+        }
+        @keyframes shake {
+          10%, 90% {
+            transform: translate3d(-1px, 0, 0);
+          }
+          20%, 80% {
+            transform: translate3d(2px, 0, 0);
+          }
+          30%, 50%, 70% {
+            transform: translate3d(-4px, 0, 0);
+          }
+          40%, 60% {
+            transform: translate3d(4px, 0, 0);
           }
         }
         /* Define custom theme colors for Tailwind JIT */
@@ -54,6 +84,28 @@
         .bg-custom-brown { background-color: var(--color-accent); }
         .text-custom-brown { color: var(--color-accent); }
 
+        @media print {
+          .no-print, header, .w-64 { /* Hide nav, header, sidebar */
+            display: none !important;
+          }
+          main {
+            padding: 1rem !important;
+            overflow: visible !important;
+          }
+          /* The container for the report should not have padding when printed */
+          .printable-container {
+            padding: 0 !important;
+          }
+          .printable-area {
+             box-shadow: none !important;
+             border: none !important;
+          }
+          @page {
+            size: A4;
+            margin: 1cm;
+          }
+        }
+
     </style>
     <script>
       tailwind.config = {
@@ -74,11 +126,23 @@
             },
             animation: {
               modalShow: 'modalShow 0.3s ease-out forwards',
+              slowPulse: 'slowPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              shake: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
             },
             keyframes: {
               modalShow: {
                 '0%': { opacity: '0', transform: 'translateY(-1rem) scale(0.98)' },
                 '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+              },
+              slowPulse: {
+                '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+                '50%': { opacity: '0.9', transform: 'scale(1.02)' },
+              },
+              shake: {
+                '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                '40%, 60%': { transform: 'translate3d(4px, 0, 0)' },
               },
             },
           },

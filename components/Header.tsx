@@ -1,17 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData';
 import { useAuth } from '../hooks/useAuth'; 
-import { APP_NAME, SettingsIcon, EyeOpenIcon, EyeClosedIcon, LogOutIcon } from '../constants';
+import { APP_NAME, SettingsIcon, EyeOpenIcon, EyeClosedIcon, LogOutIcon, BellIcon } from '../constants';
+import { Notification } from '../types';
+import NotificationsPanel from './NotificationsPanel';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+    notifications: Notification[];
+    markNotificationsAsRead: (notificationId: string) => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ notifications, markNotificationsAsRead }) => {
   const { settings, updateSettings } = useAppData();
   const { currentUser, logout } = useAuth(); 
   const navigate = useNavigate();
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogoClick = () => {
     if (currentUser) {
-      navigate('/dashboard'); 
+      navigate('/rest'); 
     }
   };
 
@@ -19,13 +30,31 @@ const Header: React.FC = () => {
     updateSettings({ privacyModeEnabled: !settings.privacyModeEnabled });
   };
 
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.isRead) {
+        markNotificationsAsRead(notification.id);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setIsPanelOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [panelRef]);
+
   return (
     <header className="bg-card-bg text-text-primary py-4 px-6 sm:px-8 shadow-md flex justify-between items-center h-20 sticky top-0 z-30">
       {/* Logo on the left */}
       <div 
         onClick={handleLogoClick}
         className="cursor-pointer flex items-center"
-        title="Ir para o Dashboard"
+        title="Ir para a tela de descanso"
       >
         {settings.customLogo ? (
           <img src={settings.customLogo} alt={`${APP_NAME} Logo`} className="h-12 max-h-full max-w-xs object-contain" />
@@ -36,6 +65,26 @@ const Header: React.FC = () => {
 
       {/* Icons on the right */}
       <div className="flex items-center space-x-3">
+        <div className="relative" ref={panelRef}>
+            <button
+                onClick={() => setIsPanelOpen(prev => !prev)}
+                className="p-2 text-text-secondary hover:text-accent transition-colors relative"
+                title="Notificações"
+            >
+                <BellIcon size={20} />
+                {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-card-bg"></span>
+                )}
+            </button>
+            {isPanelOpen && (
+                <NotificationsPanel
+                    notifications={notifications}
+                    onClose={() => setIsPanelOpen(false)}
+                    onNotificationClick={handleNotificationClick}
+                />
+            )}
+        </div>
+
         <button
           onClick={togglePrivacyMode}
           className="p-2 text-text-secondary hover:text-accent transition-colors"

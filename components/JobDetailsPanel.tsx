@@ -1,14 +1,15 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Job, Client, JobStatus, JobObservation, Payment } from '../types';
+import { Job, Client, JobStatus, JobObservation, Task, DraftNote } from '../types';
 import { useAppData } from '../hooks/useAppData';
 import { getJobPaymentSummary } from '../utils/jobCalculations';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { 
-    XIcon, PencilIcon, TrashIcon, PlusIcon, CloudLinkIcon, CurrencyDollarIcon, CheckIcon, ArchiveIcon
+    XIcon, PencilIcon, TrashIcon, PlusIcon, CloudLinkIcon, CurrencyDollarIcon, ArchiveIcon
 } from '../constants';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { useNavigate } from 'react-router-dom';
+import LinkDraftModal from './modals/LinkDraftModal';
 
 interface JobDetailsPanelProps {
   job: Job;
@@ -22,106 +23,56 @@ interface JobDetailsPanelProps {
   onOpenTrash: () => void;
 }
 
-const JobDetailsPanel: React.FC<JobDetailsPanelProps> = ({
-  job,
-  client,
-  isOpen,
-  onClose,
-  onEdit,
-  onDelete,
-  onRegisterPayment,
-  onOpenArchive,
-  onOpenTrash,
-}) => {
-  const { settings, updateJob } = useAppData();
-  const [newObservation, setNewObservation] = useState('');
-  const panelRef = useRef<HTMLDivElement>(null);
-  
-  const { totalPaid, remaining, isFullyPaid } = getJobPaymentSummary(job);
+const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
+  <button
+    onClick={onClick}
+    className={`px-4 py-2 text-sm font-semibold transition-colors rounded-t-lg border-b-2
+                ${active ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:border-slate-300 hover:text-text-primary'}`}
+  >
+    {children}
+  </button>
+);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+const DetailsTabContent: React.FC<{ job: Job, client?: Client }> = ({ job, client }) => {
+    const { settings, updateJob } = useAppData();
+    const [newObservation, setNewObservation] = useState('');
+    const { totalPaid, remaining } = getJobPaymentSummary(job);
+
+    const handleAddObservation = () => {
+        if (!newObservation.trim()) {
+          toast.error('Observação não pode estar vazia.');
+          return;
+        }
+        const observation: JobObservation = {
+          id: uuidv4(),
+          text: newObservation.trim(),
+          timestamp: new Date().toISOString(),
+        };
+        const updatedObservations = [...(job.observationsLog || []), observation];
+        updateJob({ ...job, observationsLog: updatedObservations });
+        setNewObservation('');
+        toast.success('Observação adicionada!');
+      };
+    
+    const getStatusColor = (status: JobStatus) => {
+        switch (status) {
+            case JobStatus.BRIEFING: return 'bg-slate-200 text-slate-700';
+            case JobStatus.PRODUCTION: return 'bg-indigo-200 text-indigo-700';
+            case JobStatus.REVIEW: return 'bg-yellow-200 text-yellow-700';
+            case JobStatus.OTHER: return 'bg-purple-200 text-purple-700';
+            case JobStatus.FINALIZED: return 'bg-blue-200 text-blue-700';
+            case JobStatus.PAID: return 'bg-green-200 text-green-700';
+            default: return 'bg-gray-200 text-gray-700';
+        }
     };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, onClose]);
-
-
-  const handleAddObservation = () => {
-    if (!newObservation.trim()) {
-      toast.error('Observação não pode estar vazia.');
-      return;
-    }
-    const observation: JobObservation = {
-      id: uuidv4(),
-      text: newObservation.trim(),
-      timestamp: new Date().toISOString(),
-    };
-    const updatedObservations = [...(job.observationsLog || []), observation];
-    updateJob({ ...job, observationsLog: updatedObservations });
-    setNewObservation('');
-    toast.success('Observação adicionada!');
-  };
-
-  if (!isOpen) return null;
-
-  const getStatusColor = (status: JobStatus) => {
-    switch (status) {
-        case JobStatus.BRIEFING: return 'bg-slate-200 text-slate-700';
-        case JobStatus.PRODUCTION: return 'bg-indigo-200 text-indigo-700';
-        case JobStatus.REVIEW: return 'bg-yellow-200 text-yellow-700';
-        case JobStatus.OTHER: return 'bg-purple-200 text-purple-700';
-        case JobStatus.FINALIZED: return 'bg-blue-200 text-blue-700';
-        case JobStatus.PAID: return 'bg-green-200 text-green-700';
-        default: return 'bg-gray-200 text-gray-700';
-    }
-  };
-
-  return (
-    <div 
-        className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-        onClick={onClose} 
-    >
-      <div
-        ref={panelRef}
-        onClick={(e) => e.stopPropagation()} 
-        className={`fixed top-0 right-0 h-full w-full max-w-md md:max-w-lg bg-card-bg shadow-2xl 
-                    transform transition-transform duration-300 ease-in-out flex flex-col
-                    ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
-        aria-modal="true"
-        role="dialog"
-        aria-labelledby="job-details-panel-title"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border-color sticky top-0 bg-card-bg z-10">
-          <h2 id="job-details-panel-title" className="text-xl font-semibold text-text-primary truncate" title={job.name}>
-            {job.name}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-text-secondary hover:text-accent p-1 rounded-full transition-colors"
-            aria-label="Fechar painel"
-          >
-            <XIcon size={24} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-grow p-6 overflow-y-auto space-y-6">
+    return (
+        <div className="space-y-6">
           <section>
             <h3 className="text-sm font-medium text-text-secondary mb-1">Status</h3>
             <p className={`text-sm font-semibold px-2 py-1 inline-block rounded-full ${getStatusColor(job.status)}`}>{job.status}</p>
           </section>
-
+          
           <section className="bg-slate-50 p-4 rounded-lg border border-slate-200">
             <h3 className="text-lg font-semibold text-text-primary mb-3">Resumo Financeiro</h3>
             <div className="grid grid-cols-3 gap-3 text-center">
@@ -236,10 +187,203 @@ const JobDetailsPanel: React.FC<JobDetailsPanelProps> = ({
             </div>
           </section>
         </div>
+    );
+};
 
-        {/* Footer */}
+const TasksTab: React.FC<{ job: Job, onUpdateTasks: (tasks: Task[]) => void }> = ({ job, onUpdateTasks }) => {
+    const [newTaskText, setNewTaskText] = useState('');
+
+    const handleAddTask = () => {
+        if (!newTaskText.trim()) return;
+        const newTask: Task = { id: uuidv4(), text: newTaskText.trim(), isCompleted: false };
+        onUpdateTasks([...(job.tasks || []), newTask]);
+        setNewTaskText('');
+        toast.success("Tarefa adicionada!");
+    };
+
+    const toggleTask = (taskId: string) => {
+        const updatedTasks = (job.tasks || []).map(task =>
+            task.id === taskId ? { ...task, isCompleted: !task.isCompleted } : task
+        );
+        onUpdateTasks(updatedTasks);
+    };
+
+    const deleteTask = (taskId: string) => {
+        onUpdateTasks((job.tasks || []).filter(task => task.id !== taskId));
+    };
+
+    const completedCount = job.tasks?.filter(t => t.isCompleted).length || 0;
+    const totalCount = job.tasks?.length || 0;
+
+    return (
+        <div className="space-y-4">
+             <div className="flex space-x-2">
+                <input
+                    type="text"
+                    value={newTaskText}
+                    onChange={(e) => setNewTaskText(e.target.value)}
+                    onKeyDown={(e) => {if(e.key === 'Enter'){ e.preventDefault(); handleAddTask();}}}
+                    placeholder="Adicionar nova tarefa e pressionar Enter"
+                    className="flex-grow p-2 border border-border-color rounded-md text-sm outline-none focus:ring-2 focus:ring-accent"
+                />
+                <button onClick={handleAddTask} className="bg-accent text-white px-3 rounded-md hover:brightness-90 flex-shrink-0"><PlusIcon size={20} /></button>
+            </div>
+            {totalCount > 0 && <p className="text-sm text-text-secondary">{completedCount} de {totalCount} tarefas concluídas.</p>}
+            <div className="space-y-2 max-h-[calc(100vh-450px)] overflow-y-auto pr-2">
+                {(job.tasks || []).map(task => (
+                    <div key={task.id} className="flex items-center p-2 bg-slate-100 rounded-md group">
+                        <input
+                            type="checkbox"
+                            checked={task.isCompleted}
+                            onChange={() => toggleTask(task.id)}
+                            className="h-5 w-5 rounded border-gray-300 text-accent focus:ring-accent cursor-pointer"
+                        />
+                        <span className={`flex-grow mx-3 text-sm ${task.isCompleted ? 'line-through text-text-secondary' : 'text-text-primary'}`}>{task.text}</span>
+                        <button onClick={() => deleteTask(task.id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded-full">
+                            <TrashIcon size={16}/>
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const DraftsTab: React.FC<{ job: Job, onUpdateLinkedDrafts: (draftIds: string[]) => void; onClosePanel: () => void; }> = ({ job, onUpdateLinkedDrafts, onClosePanel }) => {
+    const { draftNotes, setDraftForDetails } = useAppData();
+    const navigate = useNavigate();
+    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+
+    const linkedDrafts = (job.linkedDraftIds || [])
+        .map(id => draftNotes.find(d => d.id === id))
+        .filter((d): d is DraftNote => d !== undefined);
+
+    const handleDraftClick = (draft: DraftNote) => {
+        setDraftForDetails(draft);
+        onClosePanel(); // Close the panel before navigating
+        navigate('/drafts');
+    };
+
+    const handleUnlink = (draftId: string) => {
+        onUpdateLinkedDrafts((job.linkedDraftIds || []).filter(id => id !== draftId));
+        toast.success("Rascunho desvinculado.");
+    };
+
+    return (
+        <div>
+            <button
+                onClick={() => setIsLinkModalOpen(true)}
+                className="w-full bg-accent text-white py-2 rounded-lg shadow hover:brightness-90 transition-all flex items-center justify-center mb-4"
+            >
+                <PlusIcon size={20} className="mr-2"/> Vincular Roteiro Existente
+            </button>
+            <div className="space-y-2">
+                {linkedDrafts.length > 0 ? linkedDrafts.map(draft => (
+                    <div key={draft.id} className="flex items-center justify-between p-3 bg-slate-100 rounded-md group">
+                        <div>
+                            <button onClick={() => handleDraftClick(draft)} className="font-medium text-accent hover:underline">{draft.title}</button>
+                            <p className="text-xs text-text-secondary">{draft.type === 'SCRIPT' ? 'Roteiro' : 'Texto'}</p>
+                        </div>
+                        <button onClick={() => handleUnlink(draft.id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded-full" title="Desvincular">
+                            <TrashIcon size={16}/>
+                        </button>
+                    </div>
+                )) : <p className="text-center text-text-secondary text-sm">Nenhum roteiro vinculado.</p>}
+            </div>
+            {isLinkModalOpen && (
+                 <LinkDraftModal
+                    isOpen={isLinkModalOpen}
+                    onClose={() => setIsLinkModalOpen(false)}
+                    onLink={onUpdateLinkedDrafts}
+                    currentlyLinkedIds={job.linkedDraftIds || []}
+                 />
+            )}
+        </div>
+    );
+};
+
+const JobDetailsPanel: React.FC<JobDetailsPanelProps> = ({
+  job,
+  client,
+  isOpen,
+  onClose,
+  onEdit,
+  onDelete,
+  onRegisterPayment,
+  onOpenArchive,
+  onOpenTrash,
+}) => {
+  const { updateJob } = useAppData();
+  const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'drafts'>('details');
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    // Reset to details tab whenever a new job is selected
+    if (job) {
+      setActiveTab('details');
+    }
+  }, [job]);
+
+  const handleUpdateTasks = (tasks: Task[]) => {
+    updateJob({ ...job, tasks });
+  };
+
+  const handleUpdateLinkedDrafts = (linkedDraftIds: string[]) => {
+      updateJob({ ...job, linkedDraftIds });
+  };
+  
+  if (!isOpen) return null;
+
+  return (
+    <div 
+        className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={onClose} 
+    >
+      <div
+        ref={panelRef}
+        onClick={(e) => e.stopPropagation()} 
+        className={`fixed top-0 right-0 h-full w-full max-w-md md:max-w-lg bg-card-bg shadow-2xl 
+                    transform transition-transform duration-300 ease-in-out flex flex-col
+                    ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        aria-modal="true" role="dialog" aria-labelledby="job-details-panel-title"
+      >
+        <div className="flex items-center justify-between p-4 border-b border-border-color sticky top-0 bg-card-bg z-10">
+          <h2 id="job-details-panel-title" className="text-xl font-semibold text-text-primary truncate" title={job.name}>
+            {job.name}
+          </h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-accent p-1 rounded-full transition-colors" aria-label="Fechar painel">
+            <XIcon size={24} />
+          </button>
+        </div>
+
+        <div className="flex-grow flex flex-col overflow-hidden">
+            <div className="px-4 border-b border-border-color flex space-x-2 bg-slate-50/50">
+                <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')}>Detalhes</TabButton>
+                <TabButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')}>Tarefas</TabButton>
+                <TabButton active={activeTab === 'drafts'} onClick={() => setActiveTab('drafts')}>Roteiros</TabButton>
+            </div>
+            <div className="p-6 overflow-y-auto flex-grow">
+                {activeTab === 'details' && <DetailsTabContent job={job} client={client} />}
+                {activeTab === 'tasks' && <TasksTab job={job} onUpdateTasks={handleUpdateTasks} />}
+                {activeTab === 'drafts' && <DraftsTab job={job} onUpdateLinkedDrafts={handleUpdateLinkedDrafts} onClosePanel={onClose} />}
+            </div>
+        </div>
+
         <div className="p-4 border-t border-border-color sticky bottom-0 bg-card-bg z-10">
-            {/* Job Actions */}
             <div className="flex flex-wrap gap-2 justify-end">
                 {job.status !== JobStatus.PAID && (
                     <button
@@ -262,7 +406,6 @@ const JobDetailsPanel: React.FC<JobDetailsPanelProps> = ({
                 <TrashIcon size={18} /> <span className="ml-1">Mover para Lixeira</span>
                 </button>
             </div>
-            {/* Global Navigation */}
             <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-start gap-4">
                  <button
                     onClick={onOpenArchive}

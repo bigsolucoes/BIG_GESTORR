@@ -5,7 +5,7 @@ import { getJobPaymentSummary } from '../utils/jobCalculations';
 import { 
     KANBAN_COLUMNS, PlusCircleIcon, BriefcaseIcon, 
     ListBulletIcon, CurrencyDollarIcon, TableCellsIcon,
-    ArchiveIcon, TrashIcon
+    ArchiveIcon, TrashIcon, CheckSquareIcon
 } from '../constants';
 import Modal from '../components/Modal';
 import JobForm from './forms/JobForm';
@@ -37,6 +37,9 @@ const JobCard: React.FC<{
   const isOverdue = deadlineDate < today && job.status !== JobStatus.PAID && job.status !== JobStatus.FINALIZED;
   const { totalPaid, isFullyPaid } = getJobPaymentSummary(job);
   const paymentProgress = job.value > 0 ? (totalPaid / job.value) * 100 : (isFullyPaid ? 100 : 0);
+
+  const completedTasks = job.tasks?.filter(t => t.isCompleted).length || 0;
+  const totalTasks = job.tasks?.length || 0;
 
   return (
     <div 
@@ -76,10 +79,18 @@ const JobCard: React.FC<{
           </div>
           <p className="text-xs text-text-secondary mb-1">{client?.name || 'Cliente não encontrado'}</p>
           <p className="text-xs text-text-secondary mb-2">Valor: {formatCurrency(job.value, settings.privacyModeEnabled)}</p>
-          <div className={`text-xs px-2 py-0.5 inline-block rounded-full mb-2 ${
-            isOverdue ? 'bg-red-100 text-red-700' : `bg-[#f0f3b4] text-yellow-900`
-          }`}>
-            Prazo: {formatDate(job.deadline)} {isOverdue && '(Atrasado)'}
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className={`text-xs px-2 py-0.5 inline-block rounded-full ${
+              isOverdue ? 'bg-red-100 text-red-700' : `bg-[#f0f3b4] text-yellow-900`
+            }`}>
+              Prazo: {formatDate(job.deadline)} {isOverdue && '(Atrasado)'}
+            </div>
+            {totalTasks > 0 && (
+              <div className="flex items-center text-xs text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full" title={`${completedTasks} de ${totalTasks} tarefas concluídas`}>
+                <CheckSquareIcon size={12} className="mr-1" />
+                <span>{completedTasks}/{totalTasks}</span>
+              </div>
+            )}
           </div>
           
           {job.value > 0 && !isFullyPaid && (
@@ -139,7 +150,7 @@ const KanbanColumn: React.FC<{
 type ViewMode = 'kanban' | 'list';
 
 const JobsPage: React.FC = () => {
-  const { jobs, clients, updateJob, deleteJob, settings, loading } = useAppData();
+  const { jobs, clients, updateJob, deleteJob, settings, loading, jobForDetails, setJobForDetails } = useAppData();
   const [isFormModalOpen, setFormModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | undefined>(undefined);
   const [currentView, setCurrentView] = useState<ViewMode>('kanban');
@@ -151,6 +162,20 @@ const JobsPage: React.FC = () => {
   const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false);
   const [isTrashModalOpen, setIsTrashModalOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Effect to open details panel when requested from another page (e.g., Calendar)
+  useEffect(() => {
+    if (jobForDetails) {
+      const jobToView = jobs.find(j => j.id === jobForDetails.id);
+      if (jobToView) {
+        setSelectedJobForPanel(jobToView);
+        setIsDetailsPanelOpen(true);
+      }
+      // Clear the global state to prevent re-opening
+      setJobForDetails(null);
+    }
+  }, [jobForDetails, setJobForDetails, jobs]);
+
 
   const activeJobs = useMemo(() => {
     return jobs.filter(job => !job.isDeleted && job.status !== JobStatus.PAID);

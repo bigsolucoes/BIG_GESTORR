@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { JobStatus, ServiceType } from './types';
 import { 
@@ -6,7 +5,7 @@ import {
   Sparkles, Cog, PlusCircle, X, Trash2, Edit3, CheckCircle, AlertCircle, Clock, 
   DollarSign, Eye, EyeOff, List, ArrowRight, Settings, CalendarDays, Archive as ArchiveIconLucide, FileText, Bot,
   Save, Check, ChevronLeft, ChevronRight, Wallet, ExternalLink, ImageUp, ImageOff, Plus, Minus, Table, ChevronDown, ChevronUp, Paperclip, Bell, RotateCw,
-  Download, Upload, LogOut
+  Download, Upload, LogOut, Printer, CheckSquare
 } from 'lucide-react';
 
 export const APP_NAME = "BIG";
@@ -55,6 +54,8 @@ export const SyncIcon = RotateCw; // Newly added for calendar sync
 export const UploadIcon = Upload; // For import
 export const DownloadIcon = Download; // For export
 export const LogOutIcon = LogOut; // For logout button
+export const PrinterIcon = Printer; // For printing
+export const CheckSquareIcon = CheckSquare; // For task checklist
 
 
 // Specific use case icons, might be same as above but named for clarity

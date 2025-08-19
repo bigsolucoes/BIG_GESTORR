@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { HashRouter } from 'react-router-dom';
 import { AppDataProvider } from './hooks/useAppData';
-import { AuthProvider } from './hooks/useAuth'; // Import AuthProvider
+import { AuthProvider } from './hooks/useAuth';
+import { NotificationsProvider } from './hooks/useNotifications';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -16,7 +17,9 @@ root.render(
     <HashRouter>
       <AuthProvider>
         <AppDataProvider>
-          <App />
+          <NotificationsProvider>
+            <App />
+          </NotificationsProvider>
         </AppDataProvider>
       </AuthProvider>
     </HashRouter>

@@ -12,8 +12,8 @@ import * as blobService from '../services/blobStorageService';
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  login: (username: string, pass: string) => Promise<boolean>; // pass for prototype only
-  register: (username: string, pass: string) => Promise<boolean>; // pass for prototype only
+  login: (username: string, pass: string) => Promise<string | null>; // Returns error message string or null on success
+  register: (username: string, email: string, pass: string) => Promise<string | null>; // Returns error message string or null on success
   logout: () => void;
 }
 
@@ -39,15 +39,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(false);
   }, []);
 
-  const login = useCallback(async (username: string, pass: string): Promise<boolean> => {
+  const login = useCallback(async (username: string, pass: string): Promise<string | null> => {
     setLoading(true);
     // Failsafe login
     if (username.toLowerCase() === 'admin' && pass === 'admin') {
-      const adminUser: User = { id: 'admin_user_id', username: 'admin' };
+      const adminUser: User = { id: 'admin_user_id', username: 'admin', email: 'admin@big.com' };
       localStorage.setItem('big_currentUser', JSON.stringify(adminUser));
       setCurrentUser(adminUser);
       setLoading(false);
-      return true;
+      return null;
     }
 
     try {
@@ -55,29 +55,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const users = storedUsers || [];
       const foundUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
 
+      if (!foundUser) {
+        setLoading(false);
+        return "Usuário não encontrado.";
+      }
+
       // Simulate password check (highly insecure, for prototype only)
       const storedUserPass = await blobService.get<string>(SYSTEM_USER_ID, `user_pass_${username.toLowerCase()}`);
 
-      if (foundUser && storedUserPass === pass) {
-        const sessionUser: User = { id: foundUser.id, username: foundUser.username };
+      if (storedUserPass === pass) {
+        const sessionUser: User = { id: foundUser.id, username: foundUser.username, email: foundUser.email };
         localStorage.setItem('big_currentUser', JSON.stringify(sessionUser));
         setCurrentUser(sessionUser);
         setLoading(false);
-        return true;
+        return null; // Success
+      } else {
+        setLoading(false);
+        return "Senha incorreta.";
       }
     } catch (error) {
       console.error("Login error:", error);
+      setLoading(false);
+      return "Ocorreu um erro inesperado. Tente novamente.";
     }
-    setLoading(false);
-    return false;
   }, []);
 
-  const register = useCallback(async (username: string, pass: string): Promise<boolean> => {
+  const register = useCallback(async (username: string, email: string, pass: string): Promise<string | null> => {
     setLoading(true);
     // Prevent admin username registration
     if (username.toLowerCase() === 'admin') {
         setLoading(false);
-        return false; 
+        return "Este nome de usuário é reservado."; 
     }
     try {
       const storedUsers = await blobService.get<User[]>(SYSTEM_USER_ID, 'users');
@@ -85,10 +93,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
         setLoading(false);
-        return false; // User already exists
+        return "Este nome de usuário já está em uso.";
+      }
+       if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        setLoading(false);
+        return "Este email já está cadastrado.";
       }
       
-      const newUser: User = { id: uuidv4(), username: username };
+      const newUser: User = { id: uuidv4(), username: username, email: email };
       const updatedUsers = [...users, newUser];
       
       await blobService.set(SYSTEM_USER_ID, 'users', updatedUsers);
@@ -96,15 +108,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await blobService.set(SYSTEM_USER_ID, `user_pass_${username.toLowerCase()}`, pass);
 
       // Automatically log in the new user
-      const sessionUser: User = { id: newUser.id, username: newUser.username };
+      const sessionUser: User = { id: newUser.id, username: newUser.username, email: newUser.email };
       localStorage.setItem('big_currentUser', JSON.stringify(sessionUser));
       setCurrentUser(sessionUser);
       setLoading(false);
-      return true;
+      return null; // Success
     } catch (error) {
       console.error("Registration error:", error);
       setLoading(false);
-      return false;
+      return "Ocorreu um erro inesperado durante o registro.";
     }
   }, []);
 

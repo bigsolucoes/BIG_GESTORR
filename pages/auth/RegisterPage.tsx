@@ -1,47 +1,59 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppData } from '../../hooks/useAppData';
-import { APP_NAME } from '../../constants';
+import { APP_NAME, ExclamationCircleIcon } from '../../constants';
 import toast from 'react-hot-toast';
 
 const RegisterPage: React.FC = () => {
-  const [username, setUsername] = useState(''); // Changed from email
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { register } = useAuth();
   const { settings } = useAppData();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateAndSubmit = async () => {
     if (password !== confirmPassword) {
-      toast.error('As senhas não coincidem.');
+      setError('As senhas não coincidem.');
       return;
     }
     if (password.length < 6) {
-        toast.error('A senha deve ter pelo menos 6 caracteres.');
-        return;
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      return;
     }
     if (username.length < 3) {
-        toast.error('O nome de usuário deve ter pelo menos 3 caracteres.');
-        return;
+      setError('O nome de usuário deve ter pelo menos 3 caracteres.');
+      return;
     }
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        toast.error('O nome de usuário deve conter apenas letras, números e underscore (_).');
-        return;
+      setError('O nome de usuário deve conter apenas letras, números e underscore (_).');
+      return;
     }
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError('Formato de email inválido.');
+      return;
+    }
+
     setIsLoading(true);
-    const success = await register(username, password); // Changed from email
+    setError(null);
+    const errorMessage = await register(username, email, password);
     setIsLoading(false);
-    if (success) {
+
+    if (errorMessage) {
+      setError(errorMessage);
+    } else {
       toast.success('Registro bem-sucedido! Bem-vindo(a)!');
       navigate('/dashboard');
-    } else {
-      toast.error('Falha no registro. Este nome de usuário pode já estar em uso ou ocorreu um erro.'); // Updated error message
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    validateAndSubmit();
   };
   
   const commonInputClass = "w-full px-4 py-3 border border-border-color rounded-lg shadow-sm focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-shadow bg-card-bg text-text-primary placeholder-text-secondary";
@@ -49,29 +61,52 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-md">
+      <div className={`w-full max-w-md transition-transform duration-500 ${error ? 'animate-shake' : ''}`}>
         <div className="text-center mb-6 sm:mb-8">
            {settings.customLogo ? (
             <img src={settings.customLogo} alt={`${APP_NAME} Logo`} className="h-12 sm:h-16 mx-auto mb-2 object-contain" />
           ) : (
-            <h1 className="text-4xl sm:text-5xl font-bold text-accent mb-2">{APP_NAME}</h1>
+            <h1 className="text-6xl sm:text-7xl font-bold text-accent mb-2 font-robuck tracking-wide">{APP_NAME}</h1>
           )}
           <h2 className="text-xl sm:text-2xl font-semibold text-text-primary">Crie sua Conta</h2>
           <p className="text-text-secondary">Comece a gerenciar seus projetos de forma inteligente.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-card-bg shadow-xl rounded-xl p-6 sm:p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="bg-card-bg shadow-xl rounded-xl p-6 sm:p-8 space-y-4">
+          
+          {error && (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md flex items-center" role="alert">
+              <ExclamationCircleIcon size={20} className="mr-3" />
+              <span className="font-semibold">{error}</span>
+            </div>
+          )}
+
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-text-secondary mb-1">Usuário (mín. 3 caracteres, letras, números, _)</label> {/* Changed from Email */}
+            <label htmlFor="username" className="block text-sm font-medium text-text-secondary mb-1">Usuário (mín. 3 caracteres, letras, números, _)</label>
             <input
-              type="text" // Changed from email
+              type="text"
               id="username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)} // Changed from setEmail
+              onChange={(e) => { setUsername(e.target.value); setError(null); }}
               className={commonInputClass}
-              placeholder="seu_usuario" // Changed placeholder
+              placeholder="seu_usuario"
               required
               disabled={isLoading}
+              autoComplete="username"
+            />
+          </div>
+           <div>
+            <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-1">Email</label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(null); }}
+              className={commonInputClass}
+              placeholder="seu@email.com"
+              required
+              disabled={isLoading}
+              autoComplete="email"
             />
           </div>
           <div>
@@ -80,11 +115,12 @@ const RegisterPage: React.FC = () => {
               type="password"
               id="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setError(null); }}
               className={commonInputClass}
               placeholder="••••••••"
               required
               disabled={isLoading}
+              autoComplete="new-password"
             />
           </div>
           <div>
@@ -93,11 +129,12 @@ const RegisterPage: React.FC = () => {
               type="password"
               id="confirmPassword"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
               className={commonInputClass}
               placeholder="••••••••"
               required
               disabled={isLoading}
+              autoComplete="new-password"
             />
           </div>
           <button

@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useRef, ChangeEvent } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { DraftNote, ScriptLine, Attachment } from '../types';
@@ -11,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Modal from '../components/Modal';
 
 const DraftsPage: React.FC = () => {
-  const { draftNotes, addDraftNote, updateDraftNote, deleteDraftNote, loading: appLoading } = useAppData();
+  const { draftNotes, addDraftNote, updateDraftNote, deleteDraftNote, loading: appLoading, draftForDetails, setDraftForDetails } = useAppData();
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newDraftData, setNewDraftData] = useState({ title: '', type: 'SCRIPT' as 'TEXT' | 'SCRIPT' });
@@ -26,6 +24,16 @@ const DraftsPage: React.FC = () => {
   const selectedDraft = useMemo(() => {
     return draftNotes.find(d => d.id === selectedDraftId) || null;
   }, [selectedDraftId, draftNotes]);
+
+  useEffect(() => {
+    if (draftForDetails) {
+      const draftToView = draftNotes.find(d => d.id === draftForDetails.id);
+      if (draftToView) {
+        setSelectedDraftId(draftToView.id);
+      }
+      setDraftForDetails(null);
+    }
+  }, [draftForDetails, setDraftForDetails, draftNotes]);
 
   useEffect(() => {
     if (selectedDraft) {

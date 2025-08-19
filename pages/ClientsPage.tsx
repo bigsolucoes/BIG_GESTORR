@@ -1,15 +1,14 @@
-
-
 import React, { useState } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { Client, Job } from '../types';
 import { getJobPaymentSummary } from '../utils/jobCalculations';
-import { PlusCircleIcon, PencilIcon, TrashIcon, CurrencyDollarIcon } from '../constants';
+import { PlusCircleIcon, PencilIcon, TrashIcon, CurrencyDollarIcon, ArrowRightIcon } from '../constants';
 import Modal from '../components/Modal';
 import ClientForm from './forms/ClientForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '../utils/formatters'; 
+import { Link } from 'react-router-dom';
 
 interface ClientCardProps {
   client: Client;
@@ -24,37 +23,34 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, jobs, onEdit, onDelete,
   const totalPaidByClient = clientJobs.reduce((sum, job) => sum + getJobPaymentSummary(job).totalPaid, 0);
 
   return (
-    <div className="bg-card-bg p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col justify-between border border-border-color">
-      <div>
+    <div className="bg-card-bg rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col border border-border-color">
+      <div className="p-6 flex-grow">
         <div className="flex justify-between items-start">
           <div>
             <h3 className="text-xl font-semibold text-text-primary">{client.name}</h3>
             {client.company && <p className="text-sm text-text-secondary">{client.company}</p>}
           </div>
           <div className="flex space-x-2 flex-shrink-0">
-            <button onClick={() => onEdit(client)} className="text-slate-500 hover:text-accent p-1" title="Editar Cliente"><PencilIcon size={18} /></button>
-            <button onClick={() => onDelete(client.id)} className="text-slate-500 hover:text-red-500 p-1" title="Excluir Cliente"><TrashIcon size={18} /></button>
+            <button onClick={(e) => { e.preventDefault(); onEdit(client); }} className="text-slate-500 hover:text-accent p-1" title="Editar Cliente"><PencilIcon size={18} /></button>
+            <button onClick={(e) => { e.preventDefault(); onDelete(client.id); }} className="text-slate-500 hover:text-red-500 p-1" title="Excluir Cliente"><TrashIcon size={18} /></button>
           </div>
         </div>
         <div className="mt-4 space-y-2">
           <p className="text-sm text-text-secondary"><strong>Email:</strong> {client.email}</p>
-          {client.phone && <p className="text-sm text-text-secondary"><strong>Telefone:</strong> {client.phone}</p>}
-          {client.cpf && <p className="text-sm text-text-secondary"><strong>CPF:</strong> {client.cpf}</p>}
           <p className="text-sm text-text-secondary"><strong>Cliente desde:</strong> {formatDate(client.createdAt)}</p>
-          {client.observations && (
-            <div className="mt-2 pt-2 border-t border-border-color">
-                <p className="text-sm font-medium text-text-secondary">Observações:</p>
-                <p className="text-sm text-text-secondary whitespace-pre-wrap">{client.observations}</p>
-            </div>
-          )}
         </div>
       </div>
-      <div className="mt-4 pt-4 border-t border-border-color">
+      <div className="mt-4 p-6 border-t border-border-color bg-slate-50 rounded-b-xl">
         <div className="flex items-center text-text-primary">
           <CurrencyDollarIcon size={20} />
           <span className="ml-2">Total Pago: {formatCurrency(totalPaidByClient, privacyModeEnabled)}</span>
         </div>
-        <p className="text-sm text-text-secondary mt-1">{clientJobs.length} job(s) realizados (não excluídos).</p>
+        <p className="text-sm text-text-secondary mt-1">{clientJobs.length} job(s) ativos.</p>
+        <div
+          className="group mt-3 inline-flex items-center text-accent font-semibold text-sm"
+        >
+          Ver Histórico Completo <ArrowRightIcon size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
+        </div>
       </div>
     </div>
   );
@@ -113,14 +109,15 @@ const ClientsPage: React.FC = () => {
       {clients.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clients.sort((a,b) => a.name.localeCompare(b.name)).map(client => (
-            <ClientCard 
-              key={client.id} 
-              client={client} 
-              jobs={jobs} 
-              onEdit={handleEditClient}
-              onDelete={handleDeleteClient}
-              privacyModeEnabled={settings.privacyModeEnabled || false}
-            />
+            <Link to={`/clients/${client.id}`} key={client.id} className="block hover:scale-[1.02] transition-transform duration-200">
+                <ClientCard 
+                  client={client} 
+                  jobs={jobs} 
+                  onEdit={handleEditClient}
+                  onDelete={handleDeleteClient}
+                  privacyModeEnabled={settings.privacyModeEnabled || false}
+                />
+            </Link>
           ))}
         </div>
       ) : (

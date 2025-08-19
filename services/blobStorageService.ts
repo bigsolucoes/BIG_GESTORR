@@ -1,9 +1,11 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // --- Supabase Configuration ---
-// Vercel and other platforms require a specific prefix (like NEXT_PUBLIC_) to expose env vars to the browser.
+// We use process.env to access environment variables.
+// A bundler like Vite or Create React App will replace these at build time.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 
 let supabase: SupabaseClient | null = null;
 export let isPersistenceEnabled = false;

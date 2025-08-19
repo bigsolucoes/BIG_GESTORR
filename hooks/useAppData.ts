@@ -1,6 +1,5 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Job, Client, AppSettings, JobObservation, DraftNote, Payment, CalendarEvent, JobStatus } from '../types';
+import { Job, Client, AppSettings, DraftNote, JobStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import { useAuth } from './useAuth';
@@ -19,7 +18,6 @@ const defaultInitialSettings: AppSettings = {
   accentColor: DEFAULT_ACCENT_COLOR,
   splashScreenBackgroundColor: DEFAULT_SPLASH_BACKGROUND_COLOR,
   privacyModeEnabled: false,
-  googleCalendarConnected: false,
 };
 
 
@@ -28,8 +26,11 @@ interface AppDataContextType {
   clients: Client[];
   draftNotes: DraftNote[];
   settings: AppSettings;
-  calendarEvents: CalendarEvent[];
-  addJob: (job: Omit<Job, 'id' | 'createdAt' | 'isDeleted' | 'observationsLog' | 'payments' | 'cloudLinks' | 'createCalendarEvent' | 'calendarEventId'> & Partial<Pick<Job, 'cloudLinks' | 'createCalendarEvent' | 'cost' | 'isRecurring'>>) => void;
+  jobForDetails: Job | null;
+  setJobForDetails: (job: Job | null) => void;
+  draftForDetails: DraftNote | null;
+  setDraftForDetails: (draft: DraftNote | null) => void;
+  addJob: (job: Omit<Job, 'id' | 'createdAt' | 'isDeleted' | 'observationsLog' | 'payments' | 'cloudLinks' | 'tasks' | 'linkedDraftIds'> & Partial<Pick<Job, 'cloudLinks' | 'cost' | 'isRecurring' | 'createCalendarEvent'>>) => void;
   updateJob: (job: Job) => void;
   deleteJob: (jobId: string) => void; // Soft delete
   permanentlyDeleteJob: (jobId: string) => void; // Hard delete
@@ -42,9 +43,6 @@ interface AppDataContextType {
   addDraftNote: (draft: { title: string, type: 'TEXT' | 'SCRIPT' }) => DraftNote;
   updateDraftNote: (draft: DraftNote) => void;
   deleteDraftNote: (draftId: string) => void;
-  connectGoogleCalendar: () => Promise<boolean>;
-  disconnectGoogleCalendar: () => void;
-  syncCalendar: () => void;
   exportData: () => void;
   importData: (jsonData: string) => Promise<boolean>;
   loading: boolean;
@@ -67,8 +65,9 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [clients, setClients] = useState<Client[]>([]);
   const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
   const [settings, setSettings] = useState<AppSettings>(defaultInitialSettings);
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [jobForDetails, setJobForDetails] = useState<Job | null>(null);
+  const [draftForDetails, setDraftForDetails] = useState<DraftNote | null>(null);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--color-main-bg', settings.primaryColor || DEFAULT_PRIMARY_COLOR);
@@ -85,26 +84,24 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
       setClients([]);
       setDraftNotes([]);
       setSettings(defaultInitialSettings);
-      setCalendarEvents([]);
       return;
     }
     
     const loadUserData = async () => {
       setLoading(true);
       try {
-        const [storedJobs, storedClients, storedDrafts, storedSettings, storedCalendarEvents] = await Promise.all([
+        const [storedJobs, storedClients, storedDrafts, storedSettings] = await Promise.all([
           blobService.get<Job[]>(currentUser.id, 'jobs'),
           blobService.get<Client[]>(currentUser.id, 'clients'),
           blobService.get<DraftNote[]>(currentUser.id, 'draftNotes'),
           blobService.get<AppSettings>(currentUser.id, 'settings'),
-          blobService.get<CalendarEvent[]>(currentUser.id, 'calendarEvents'),
         ]);
 
         const isNewUser = !storedJobs && !storedClients && !storedDrafts && !storedSettings;
 
         const parsedJobs = storedJobs || [];
         const migratedJobs = parsedJobs.map((job: any): Job => ({
-          ...job, id: job.id || uuidv4(), isDeleted: job.isDeleted ?? false, observationsLog: job.observationsLog || [], cloudLinks: job.cloudLinks || (job.cloudLink ? [job.cloudLink] : []), createCalendarEvent: job.createCalendarEvent ?? false, cost: job.cost ?? undefined, payments: job.payments || [], calendarEventId: job.calendarEventId, isRecurring: job.isRecurring ?? false,
+          ...job, id: job.id || uuidv4(), isDeleted: job.isDeleted ?? false, observationsLog: job.observationsLog || [], cloudLinks: job.cloudLinks || (job.cloudLink ? [job.cloudLink] : []), cost: job.cost ?? undefined, payments: job.payments || [], isRecurring: job.isRecurring ?? false, tasks: job.tasks || [], linkedDraftIds: job.linkedDraftIds || [],
         }));
         setJobs(migratedJobs);
 
@@ -122,11 +119,9 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
           userName: loadedSettings.userName || currentUser.username,
         });
 
-        setCalendarEvents(storedCalendarEvents || []);
-
       } catch (error) {
         console.error("Failed to load or migrate data from blob storage for user", currentUser.id, error);
-        setJobs([]); setClients([]); setDraftNotes([]); setSettings(defaultInitialSettings); setCalendarEvents([]);
+        setJobs([]); setClients([]); setDraftNotes([]); setSettings(defaultInitialSettings);
       } finally {
         setLoading(false);
       }
@@ -145,13 +140,12 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => { saveData('clients', clients); }, [clients, saveData]);
   useEffect(() => { saveData('draftNotes', draftNotes); }, [draftNotes, saveData]);
   useEffect(() => { saveData('settings', settings); }, [settings, saveData]);
-  useEffect(() => { saveData('calendarEvents', calendarEvents); }, [calendarEvents, saveData]);
 
 
- const addJob = useCallback((jobData: Omit<Job, 'id' | 'createdAt' | 'isDeleted' | 'observationsLog' | 'payments' | 'cloudLinks' | 'createCalendarEvent' | 'calendarEventId'> & Partial<Pick<Job, 'cloudLinks' | 'createCalendarEvent' | 'cost' | 'isRecurring'>>) => {
+ const addJob = useCallback((jobData: Omit<Job, 'id' | 'createdAt' | 'isDeleted' | 'observationsLog' | 'payments' | 'cloudLinks' | 'tasks' | 'linkedDraftIds'> & Partial<Pick<Job, 'cloudLinks' | 'cost' | 'isRecurring' | 'createCalendarEvent'>>) => {
     const newJob: Job = {
         ...jobData,
-        id: uuidv4(), createdAt: new Date().toISOString(), isDeleted: false, observationsLog: [], payments: [], cloudLinks: jobData.cloudLinks || [], createCalendarEvent: jobData.createCalendarEvent || false, isRecurring: jobData.isRecurring || false,
+        id: uuidv4(), createdAt: new Date().toISOString(), isDeleted: false, observationsLog: [], payments: [], cloudLinks: jobData.cloudLinks || [], isRecurring: jobData.isRecurring || false, tasks: [], linkedDraftIds: [],
     };
     setJobs(prev => [...prev, newJob]);
   }, []);
@@ -172,7 +166,8 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
                 status: JobStatus.BRIEFING, 
                 payments: [],
                 observationsLog: [],
-                calendarEventId: undefined, 
+                tasks: [],
+                linkedDraftIds: [],
                 name: `${updatedJob.name.replace(/ \(Mês Seguinte\)$/i, '')}`,
             };
 
@@ -201,78 +196,19 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
   const updateDraftNote = useCallback((updatedDraft: DraftNote) => { setDraftNotes(prev => prev.map(draft => draft.id === updatedDraft.id ? { ...updatedDraft, updatedAt: new Date().toISOString() } : draft)); }, []);
   const deleteDraftNote = useCallback((draftId: string) => { setDraftNotes(prev => prev.filter(draft => draft.id !== draftId)); }, []);
 
-  const syncCalendar = useCallback(() => {
-    if (!settings.googleCalendarConnected) return;
-
-    let allEvents = [...calendarEvents];
-    let jobsToUpdate: Job[] = [];
-
-    const googleEvents: CalendarEvent[] = []; // In real app, fetch from Google API
-    allEvents = allEvents.filter(e => e.source !== 'google').concat(googleEvents);
-    
-    const jobsWithCalendarRequest = jobs.filter(j => !j.isDeleted && j.createCalendarEvent);
-    const existingEventJobIds = new Set(allEvents.filter(e => e.source === 'big').map(e => e.jobId));
-    
-    jobsWithCalendarRequest.forEach(job => {
-        if (!existingEventJobIds.has(job.id)) {
-            const eventId = `big_${job.id}`;
-            const newEvent: CalendarEvent = {
-                id: eventId, title: `Entrega: ${job.name}`, start: job.deadline, end: job.deadline, allDay: true, source: 'big', jobId: job.id,
-            };
-            allEvents.push(newEvent);
-            jobsToUpdate.push({ ...job, calendarEventId: eventId });
-        }
-    });
-
-    const jobIdsWithRequest = new Set(jobsWithCalendarRequest.map(j => j.id));
-    allEvents = allEvents.filter(event => !(event.source === 'big' && !jobIdsWithRequest.has(event.jobId)));
-
-    setCalendarEvents(allEvents);
-    if(jobsToUpdate.length > 0){
-        setJobs(prevJobs => prevJobs.map(j => jobsToUpdate.find(ju => ju.id === j.id) || j));
-    }
-    updateSettings({ googleCalendarLastSync: new Date().toISOString() });
-  }, [jobs, settings.googleCalendarConnected, calendarEvents, updateSettings]);
-
-  useEffect(() => {
-    const syncTimeout = setTimeout(() => {
-        if (settings.googleCalendarConnected && !loading) {
-            syncCalendar();
-        }
-    }, 500);
-    return () => clearTimeout(syncTimeout);
-  }, [jobs, settings.googleCalendarConnected, loading, syncCalendar]);
-
-  const connectGoogleCalendar = useCallback(async (): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const success = Math.random() > 0.2;
-    if (success) {
-      updateSettings({ googleCalendarConnected: true, googleCalendarLastSync: new Date().toISOString() });
-      return true;
-    }
-    return false;
-  }, [updateSettings]);
-  
-  const disconnectGoogleCalendar = useCallback(() => {
-    updateSettings({ googleCalendarConnected: false, googleCalendarLastSync: undefined });
-    setCalendarEvents([]);
-    setJobs(prev => prev.map(j => ({ ...j, calendarEventId: undefined })));
-  }, [updateSettings]);
-
   const exportData = useCallback(() => {
     if (!currentUser) {
       toast.error("Você precisa estar logado para exportar dados.");
       return;
     }
     const dataToExport = {
-      version: '2.0-blob',
+      version: '2.2-blob', // Updated version
       exportedAt: new Date().toISOString(),
       data: {
         jobs,
         clients,
         draftNotes,
         settings,
-        calendarEvents,
       }
     };
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
@@ -283,7 +219,7 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
     link.download = `big_backup_${currentUser.username}_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     toast.success("Dados exportados com sucesso!");
-  }, [jobs, clients, draftNotes, settings, calendarEvents, currentUser]);
+  }, [jobs, clients, draftNotes, settings, currentUser]);
 
   const importData = useCallback(async (jsonData: string): Promise<boolean> => {
     if (!currentUser) {
@@ -302,14 +238,12 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
         clients: importedClients,
         draftNotes: importedDrafts,
         settings: importedSettings,
-        calendarEvents: importedEvents
       } = parsedData.data;
 
       setJobs(importedJobs || []);
       setClients(importedClients || []);
       setDraftNotes(importedDrafts || []);
       setSettings(importedSettings || defaultInitialSettings);
-      setCalendarEvents(importedEvents || []);
       
       toast.success("Dados importados com sucesso! A aplicação será recarregada.");
 
@@ -327,7 +261,7 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
 
 
   const contextValue: AppDataContextType = {
-    jobs, clients, draftNotes, settings, calendarEvents, addJob, updateJob, deleteJob, permanentlyDeleteJob, getJobById, addClient, updateClient, deleteClient, getClientById, updateSettings, addDraftNote, updateDraftNote, deleteDraftNote, connectGoogleCalendar, disconnectGoogleCalendar, syncCalendar, exportData, importData, loading
+    jobs, clients, draftNotes, settings, addJob, updateJob, deleteJob, permanentlyDeleteJob, getJobById, addClient, updateClient, deleteClient, getClientById, updateSettings, addDraftNote, updateDraftNote, deleteDraftNote, exportData, importData, loading, jobForDetails, setJobForDetails, draftForDetails, setDraftForDetails
   };
 
   return React.createElement(AppDataContext.Provider, { value: contextValue }, children);

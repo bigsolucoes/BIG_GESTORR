@@ -5,24 +5,26 @@ import Header from './components/Header';
 import DashboardPage from './pages/DashboardPage';
 import JobsPage from './pages/JobsPage';
 import ClientsPage from './pages/ClientsPage';
+import ClientDetailPage from './pages/ClientDetailPage'; // New
 import FinancialsPage from './pages/FinancialsPage';
 import PerformancePage from './pages/PerformancePage';
 import CommunicationPage from './pages/CommunicationPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import SettingsPage from './pages/SettingsPage';
-// import GoogleDrivePage from './pages/GoogleDrivePage'; // Removed
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import CalendarPage from './pages/CalendarPage'; // New
-import ArchivePage from './pages/ArchivePage';   // New
-import DraftsPage from './pages/DraftsPage';     // New
+import CalendarPage from './pages/CalendarPage';
+import ArchivePage from './pages/ArchivePage';
+import DraftsPage from './pages/DraftsPage';
+import RestPage from './pages/RestPage';
 import { useAppData } from './hooks/useAppData';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from 'react-hot-toast';
 import BrandingSplashScreen from './components/BrandingSplashScreen';
 import { isPersistenceEnabled } from './services/blobStorageService';
 import { ExclamationCircleIcon } from './constants';
+import { useNotifications } from './hooks/useNotifications';
 
 const PersistenceWarningBanner: React.FC = () => {
   if (isPersistenceEnabled) {
@@ -43,12 +45,13 @@ const PersistenceWarningBanner: React.FC = () => {
 
 
 const MainLayout: React.FC = () => {
+  const { notifications, markAsRead } = useNotifications();
   return (
     <div 
       className="flex flex-col h-screen bg-main-bg text-text-primary" 
     >
       <PersistenceWarningBanner />
-      <Header />
+      <Header notifications={notifications} markNotificationsAsRead={markAsRead} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 p-6 sm:p-8 overflow-y-auto">
@@ -57,6 +60,7 @@ const MainLayout: React.FC = () => {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/jobs" element={<JobsPage />} />
             <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/clients/:clientId" element={<ClientDetailPage />} /> {/* New Route */}
             <Route path="/financials" element={<FinancialsPage />} />
             <Route path="/performance" element={<PerformancePage />} />
             <Route path="/calendar" element={<CalendarPage />} />
@@ -64,7 +68,7 @@ const MainLayout: React.FC = () => {
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/communication" element={<CommunicationPage />} />
             <Route path="/ai-assistant" element={<AIAssistantPage />} />
-            {/* <Route path="/drive" element={<GoogleDrivePage />} /> */} {/* Removed Drive Route */}
+            <Route path="/rest" element={<RestPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
